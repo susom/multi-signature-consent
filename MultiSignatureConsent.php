@@ -42,6 +42,19 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
     }
 
 
+    public function redcap_every_page_before_render() {
+        if (PAGE == 'FileRepository/index.php') {
+            global $Proj;
+            $this->initialize();
+            $firstForm = $this->inputForms[0];
+            if (empty($firstForm)) return;
+            if (empty($Proj->forms[$firstForm]['survey_id'])) return;
+            $survey_id = $Proj->forms[$firstForm]['survey_id'];
+            $Proj->surveys[$survey_id]['pdf_auto_archive']=true;
+        }
+    }
+
+
 	public function redcap_pdf ($project_id, $metadata, $data, $instrument = NULL, $record = NULL, $event_id = NULL, $instance = 1 ) {
         if (self::$MAKING_PDF) {
 
@@ -100,6 +113,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
 
 	public function redcap_save_record( $project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+        global $Proj;
         $this->initialize();
 
         if (empty($this->evalLogic) ||
@@ -111,7 +125,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         }
 
         // Make a PDF
-        $this->emDebug("Making PDF", self::$MAKING_PDF);
+        //$this->emDebug("Making PDF", self::$MAKING_PDF);
         self::$MAKING_PDF = true;
 
         // Always start with the 'first form' as the template
@@ -120,19 +134,33 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             true,$this->header,$this->footer);
 
         // Get a temp filename
-        $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
-            $this->PREFIX . "_" .
-            $record . ".pdf";
+        // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
+        //     $this->PREFIX . "_" .
+        //     $record . ".pdf";
+        $recordFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $record)));
+        $formFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $Proj->forms[$first_form]['menu'])));
+        $filename = APP_PATH_TEMP . "pid" . $this->getProjectId() .
+            "_form" . $formFilename . "_id" . $recordFilename . "_" . date('Y-m-d_His') . ".pdf";
 
         // Make a file with the PDF
         file_put_contents($filename, $pdf);
 
+        // Add PDF to edocs_metadata table
+		$pdfFile = array('name'=>basename($filename), 'type'=>'application/pdf',
+						 'size'=>filesize($filename), 'tmp_name'=>$filename);
+		$edoc_id = \Files::uploadFile($pdfFile);
+
         // Upload to file_field to EDOCS
-        $edoc_id = $this->framework->saveFile($filename);
-        // $this->emDebug($edoc_id);
+        // $edoc_id = $this->framework->saveFile($filename);
+        $this->emDebug($edoc_id);
 
         // Remove it from TEMP
         unlink($filename);
+
+		if ($edoc_id == 0) {
+		    $this->emError("Unable to get edoc id!");
+		    return false;
+        }
 
         // Save it to the record
         if (!empty($this->destinationFileField)) {
@@ -172,9 +200,24 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
 
         // // Save to file repository
-        // if ($this->saveToFileRepo) {
-        //
-        // }
+        if ($this->saveToFileRepo) {
+            if (empty( $Proj->forms[$first_form]['survey_id'] )) {
+                \REDCap::logEvent($this->getModuleName() . " Error",
+                    "Cannot save to file repository unless first consent form is a survey ($first_form)","",$record,$event_id);
+            } else {
+                // Add values to redcap_surveys_pdf_archive table
+                $survey_id = $Proj->forms[$first_form]['survey_id'];
+
+                $ip = \System::clientIpAddress();
+                $nameDobText = $this->getModuleName();
+                $versionText = $typeText = "";
+                $sql = "replace into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
+                        ($edoc_id, '".db_escape($record)."', '".db_escape($event_id)."', '".db_escape($survey_id)."', '".db_escape($repeat_instance)."',
+                        ".checkNull($nameDobText).", ".checkNull($versionText).", ".checkNull($typeText).", ".checkNull($ip).")";
+                $q = db_query($sql);
+                $this->emDebug($sql,$q);
+            }
+        }
 
         self::$MAKING_PDF = false;
     }

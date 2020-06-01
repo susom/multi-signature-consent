@@ -22,7 +22,8 @@
 		"redcap_module_project_enable",
 		"redcap_module_save_configuration",
         "redcap_save_record",
-        "redcap_pdf"
+        "redcap_pdf",
+        "redcap_every_page_before_render"
 	],
 
 	"enable-every-page-hooks-on-system-pages": false,
