@@ -113,122 +113,127 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
 
 	public function redcap_save_record( $project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
-        global $Proj;
-        $this->initialize();
+        try {
 
-        // Make sure we are in one of the input forms
-        if (!in_array($instrument, $this->inputForms)) {
-            $this->emDebug("$instrument is not in " . implode(",",$this->inputForms) . " -- skipping");
-            return false;
-        }
+            global $Proj;
+            $this->initialize();
 
-        $this->emDebug("Saving $record on $instrument, event $event_id with logic $this->evalLogic");
-        if (empty($this->evalLogic) ||
-            \REDCap::evaluateLogic($this->evalLogic,$project_id,$record,$event_id,$repeat_instance) == false
-        ) {
-            // Skip - nothing to do here
-            $this->emDebug("Skip");
-            return false;
-        }
-
-        $this->emDebug("Logic True");
-
-        // Make a PDF
-        //$this->emDebug("Making PDF", self::$MAKING_PDF);
-        self::$MAKING_PDF = true;
-
-        // Always start with the 'first form' as the template
-        $first_form = $this->inputForms[0];
-        $pdf = \REDCap::getPDF($record, $first_form, $event_id,false, $repeat_instance,
-            true,$this->header,$this->footer);
-
-        // Get a temp filename
-        // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
-        //     $this->PREFIX . "_" .
-        //     $record . ".pdf";
-        $recordFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $record)));
-        $formFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $Proj->forms[$first_form]['menu'])));
-        $filename = APP_PATH_TEMP . "pid" . $this->getProjectId() .
-            "_form" . $formFilename . "_id" . $recordFilename . "_" . date('Y-m-d_His') . ".pdf";
-
-        // Make a file with the PDF
-        file_put_contents($filename, $pdf);
-
-        // Add PDF to edocs_metadata table
-		$pdfFile = array('name'=>basename($filename), 'type'=>'application/pdf',
-						 'size'=>filesize($filename), 'tmp_name'=>$filename);
-		$edoc_id = \Files::uploadFile($pdfFile);
-
-        // Upload to file_field to EDOCS
-        // $edoc_id = $this->framework->saveFile($filename);
-        $this->emDebug($edoc_id);
-
-        // Remove it from TEMP
-        unlink($filename);
-
-		if ($edoc_id == 0) {
-		    $this->emError("Unable to get edoc id!");
-		    return false;
-        }
-
-        // Save it to the record
-        if (!empty($this->destinationFileField)) {
-            $data = [
-                $record => [
-                    $event_id => [
-                        $this->destinationFileField => $edoc_id
-                    ]
-                ]
-            ];
-
-            $result = \Records::saveData(
-                $project_id,
-                'array',        //$dataFormat = (isset($args[1])) ? strToLower($args[1]) : 'array';
-                $data,          // = (isset($args[2])) ? $args[2] : "";
-                'normal',       //$overwriteBehavior = (isset($args[3])) ? strToLower($args[3]) : 'normal';
-                'YMD',          //$dateFormat = (isset($args[4])) ? strToUpper($args[4]) : 'YMD';
-                'flat',         //$type = (isset($args[5])) ? strToLower($args[5]) : 'flat';
-                $group_id,      // = (isset($args[6])) ? $args[6] : null;
-                true,           //$dataLogging = (isset($args[7])) ? $args[7] : true;
-                true,           //$performAutoCalc = (isset($args[8])) ? $args[8] : true;
-                true,           //$commitData = (isset($args[9])) ? $args[9] : true;
-                false,          //$logAsAutoCalculations = (isset($args[10])) ? $args[10] : false;
-                true,           //$skipCalcFields = (isset($args[11])) ? $args[11] : true;
-                [],             //$changeReasons = (isset($args[12])) ? $args[12] : array();
-                false,          //$returnDataComparisonArray = (isset($args[13])) ? $args[13] : false;
-                false,          //**** $skipFileUploadFields = (isset($args[14])) ? $args[14] : true;
-                false,          //$removeLockedFields = (isset($args[15])) ? $args[15] : false;
-                false,          //$addingAutoNumberedRecords = (isset($args[16])) ? $args[16] : false;
-                false           //$bypassPromisCheck = (isset($args[17])) ? $args[17] : false;
-            );
-
-            \REDCap::logEvent($this->getModuleName(),$this->destinationFileField .
-                " was updated with a new PDF containing data from " .
-                implode(",",$this->inputForms),"",$record,$event_id);
-        }
-
-
-        // // Save to file repository
-        if ($this->saveToFileRepo) {
-            if (empty( $Proj->forms[$first_form]['survey_id'] )) {
-                \REDCap::logEvent($this->getModuleName() . " Error",
-                    "Cannot save to file repository unless first consent form is a survey ($first_form)","",$record,$event_id);
-            } else {
-                // Add values to redcap_surveys_pdf_archive table
-                $survey_id = $Proj->forms[$first_form]['survey_id'];
-
-                $ip = \System::clientIpAddress();
-                $nameDobText = $this->getModuleName();
-                $versionText = $typeText = "";
-                $sql = "replace into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
-                        ($edoc_id, '".db_escape($record)."', '".db_escape($event_id)."', '".db_escape($survey_id)."', '".db_escape($repeat_instance)."',
-                        ".checkNull($nameDobText).", ".checkNull($versionText).", ".checkNull($typeText).", ".checkNull($ip).")";
-                $q = db_query($sql);
-                $this->emDebug($sql,$q);
+            // Make sure we are in one of the input forms
+            if (!in_array($instrument, $this->inputForms)) {
+                $this->emDebug("$instrument is not in " . implode(",", $this->inputForms) . " -- skipping");
+                return false;
             }
-        }
 
-        self::$MAKING_PDF = false;
+            $this->emDebug("Saving $record on $instrument, event $event_id with logic $this->evalLogic");
+            if (empty($this->evalLogic) ||
+                \REDCap::evaluateLogic($this->evalLogic, $project_id, $record, $event_id, $repeat_instance) == false
+            ) {
+                // Skip - nothing to do here
+                $this->emDebug("Skip");
+                return false;
+            }
+
+            $this->emDebug("Logic True");
+
+            // Make a PDF
+            //$this->emDebug("Making PDF", self::$MAKING_PDF);
+            self::$MAKING_PDF = true;
+
+            // Always start with the 'first form' as the template
+            $first_form = $this->inputForms[0];
+            $pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
+                true, $this->header, $this->footer);
+
+            // Get a temp filename
+            // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
+            //     $this->PREFIX . "_" .
+            //     $record . ".pdf";
+            $recordFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $record)));
+            $formFilename   = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $Proj->forms[$first_form]['menu'])));
+            $filename       = APP_PATH_TEMP . "pid" . $this->getProjectId() .
+                "_form" . $formFilename . "_id" . $recordFilename . "_" . date('Y-m-d_His') . ".pdf";
+
+            // Make a file with the PDF
+            file_put_contents($filename, $pdf);
+
+            // Add PDF to edocs_metadata table
+            $pdfFile = array('name' => basename($filename), 'type' => 'application/pdf',
+                'size' => filesize($filename), 'tmp_name' => $filename);
+            $edoc_id = \Files::uploadFile($pdfFile);
+
+            // Upload to file_field to EDOCS
+            // $edoc_id = $this->framework->saveFile($filename);
+            $this->emDebug($edoc_id);
+
+            // Remove it from TEMP
+            unlink($filename);
+
+            if ($edoc_id == 0) {
+                $this->emError("Unable to get edoc id!");
+                return false;
+            }
+
+            // Save it to the record
+            if (!empty($this->destinationFileField)) {
+                $data = [
+                    $record => [
+                        $event_id => [
+                            $this->destinationFileField => $edoc_id
+                        ]
+                    ]
+                ];
+
+                $result = \Records::saveData(
+                    $project_id,
+                    'array',        //$dataFormat = (isset($args[1])) ? strToLower($args[1]) : 'array';
+                    $data,          // = (isset($args[2])) ? $args[2] : "";
+                    'normal',       //$overwriteBehavior = (isset($args[3])) ? strToLower($args[3]) : 'normal';
+                    'YMD',          //$dateFormat = (isset($args[4])) ? strToUpper($args[4]) : 'YMD';
+                    'flat',         //$type = (isset($args[5])) ? strToLower($args[5]) : 'flat';
+                    $group_id,      // = (isset($args[6])) ? $args[6] : null;
+                    true,           //$dataLogging = (isset($args[7])) ? $args[7] : true;
+                    true,           //$performAutoCalc = (isset($args[8])) ? $args[8] : true;
+                    true,           //$commitData = (isset($args[9])) ? $args[9] : true;
+                    false,          //$logAsAutoCalculations = (isset($args[10])) ? $args[10] : false;
+                    true,           //$skipCalcFields = (isset($args[11])) ? $args[11] : true;
+                    [],             //$changeReasons = (isset($args[12])) ? $args[12] : array();
+                    false,          //$returnDataComparisonArray = (isset($args[13])) ? $args[13] : false;
+                    false,          //**** $skipFileUploadFields = (isset($args[14])) ? $args[14] : true;
+                    false,          //$removeLockedFields = (isset($args[15])) ? $args[15] : false;
+                    false,          //$addingAutoNumberedRecords = (isset($args[16])) ? $args[16] : false;
+                    false           //$bypassPromisCheck = (isset($args[17])) ? $args[17] : false;
+                );
+
+                \REDCap::logEvent($this->getModuleName(), $this->destinationFileField .
+                    " was updated with a new PDF containing data from " .
+                    implode(",", $this->inputForms), "", $record, $event_id);
+            }
+
+
+            // // Save to file repository
+            if ($this->saveToFileRepo) {
+                if (empty($Proj->forms[$first_form]['survey_id'])) {
+                    \REDCap::logEvent($this->getModuleName() . " Error",
+                        "Cannot save to file repository unless first consent form is a survey ($first_form)", "", $record, $event_id);
+                } else {
+                    // Add values to redcap_surveys_pdf_archive table
+                    $survey_id = $Proj->forms[$first_form]['survey_id'];
+
+                    $ip          = \System::clientIpAddress();
+                    $nameDobText = $this->getModuleName();
+                    $versionText = $typeText = "";
+                    $sql         = "replace into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
+                            ($edoc_id, '" . db_escape($record) . "', '" . db_escape($event_id) . "', '" . db_escape($survey_id) . "', '" . db_escape($repeat_instance) . "',
+                            " . checkNull($nameDobText) . ", " . checkNull($versionText) . ", " . checkNull($typeText) . ", " . checkNull($ip) . ")";
+                    $q           = db_query($sql);
+                    $this->emDebug($sql, $q);
+                }
+            }
+
+            self::$MAKING_PDF = false;
+        } catch(\Exception $e) {
+            $this->emError($e->getMessage(), "Line: " . $e->getLine(), $e->getTraceAsString());
+        }
     }
 
 
