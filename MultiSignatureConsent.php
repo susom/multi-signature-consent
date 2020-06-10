@@ -116,13 +116,22 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         global $Proj;
         $this->initialize();
 
+        // Make sure we are in one of the input forms
+        if (!in_array($instrument, $this->inputForms)) {
+            $this->emDebug("$instrument is not in " . implode(",",$this->inputForms) . " -- skipping");
+            return false;
+        }
+
+        $this->emDebug("Saving $record on $instrument, event $event_id with logic $this->evalLogic");
         if (empty($this->evalLogic) ||
             \REDCap::evaluateLogic($this->evalLogic,$project_id,$record,$event_id,$repeat_instance) == false
         ) {
             // Skip - nothing to do here
             $this->emDebug("Skip");
-            return;
+            return false;
         }
+
+        $this->emDebug("Logic True");
 
         // Make a PDF
         //$this->emDebug("Making PDF", self::$MAKING_PDF);

@@ -67,7 +67,7 @@
             "key": "eval-logic",
             "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF",
             "required": true,
-            "type": "note"
+            "type": "textarea"
         },
         {
             "key": "header",
