@@ -13,6 +13,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
     public $header;
     public $footer;
     public $saveToFileRepo;
+    public $saveToAsSurvey;
 
     private static $MAKING_PDF = false;
 
@@ -31,6 +32,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         $this->header               = $this->getProjectSetting('header');
         $this->footer               = $this->getProjectSetting('footer');
         $this->saveToFileRepo       = $this->getProjectSetting('save-to-file-repo');
+        $this->saveToAsSurvey       = $this->getProjectSetting('save-to-as-survey');
         $this::$KEEP_PAGE_BREAKS    = $this->getProjectSetting('keep-page-breaks');
         $this::$KEEP_RECORD_ID_FIELD= $this->getProjectSetting('keep-record-id-field');
 
@@ -125,9 +127,10 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             }
 
             $this->emDebug("Saving $record on $instrument, event $event_id with logic $this->evalLogic");
-            if (empty($this->evalLogic) ||
-                \REDCap::evaluateLogic($this->evalLogic, $project_id, $record, $event_id, $repeat_instance) == false
-            ) {
+            // $event_name = $Proj->longitudinal ? \REDCap::getEventNames(true,true,$event_id) : null;
+            $logic = \REDCap::evaluateLogic($this->evalLogic, $project_id, $record, $event_id);
+
+            if (empty($this->evalLogic) || $logic == false) {
                 // Skip - nothing to do here
                 $this->emDebug("Skip");
                 return false;
@@ -141,6 +144,8 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
             // Always start with the 'first form' as the template
             $first_form = $this->inputForms[0];
+            $last_form = $this->inputForms[count($this->inputForms) -1 ];
+
             $pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
                 true, $this->header, $this->footer);
 
@@ -212,12 +217,13 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
             // // Save to file repository
             if ($this->saveToFileRepo) {
-                if (empty($Proj->forms[$first_form]['survey_id'])) {
+                $pdf_form = empty($this->saveToAsSurvey) ? $last_form : $this->saveToAsSurvey;
+                if (empty($Proj->forms[$pdf_form]['survey_id'])) {
                     \REDCap::logEvent($this->getModuleName() . " Error",
-                        "Cannot save to file repository unless first consent form is a survey ($first_form)", "", $record, $event_id);
+                        "Cannot save to file repository unless the pdf_form is a survey ($pdf_form)", "", $record, $event_id);
                 } else {
                     // Add values to redcap_surveys_pdf_archive table
-                    $survey_id = $Proj->forms[$first_form]['survey_id'];
+                    $survey_id = $Proj->forms[$pdf_form]['survey_id'];
 
                     $ip          = \System::clientIpAddress();
                     $nameDobText = $this->getModuleName();

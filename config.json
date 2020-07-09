@@ -59,13 +59,13 @@
         },
         {
           "key": "destination-file-field",
-          "name": "<b>File Field</b><br>This is where the PDF will be saved in the record",
+          "name": "<b>File Field</b><br>This is where the PDF will be saved in the record and it must be a file-upload field",
           "required": true,
           "type": "field-list"
         },
         {
             "key": "eval-logic",
-            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF",
+            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF.  This logic should not be true until all forms are complete",
             "required": true,
             "type": "textarea"
         },
@@ -98,6 +98,12 @@
             "name": "<b>Save in File Repository</b><br>Check to save a permanent copy in the file repository (like the econsent module)",
             "required": false,
             "type": "checkbox"
+        },
+        {
+            "key": "save-to-as-survey",
+            "name": "<b>Save As This Survey In File Repository</b><br>If you check the previous option, set which survey you want this to appear as in the File Repository.  If you are using the eConsent Framework on one of the surveys in this config, then be sure to select a different survey as you can only have one entry per record, per survey id in the File Repository.  Will default to first form otherwise",
+            "required": false,
+            "type": "form-list"
         },
 		{
 			"key": "enable-project-debug-logging",
