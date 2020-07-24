@@ -169,8 +169,9 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $edoc_id = \Files::uploadFile($pdfFile);
             if ($this->saveToExternalStorage) {
                 $externalFileStoreWrite=\Files::writeFilePdfAutoArchiverToExternalServer( basename($filename), $pdf);
-                \REDCap::logEvent($this->getModuleName(), $this->destinationFileField .
-                    " wrote a PDF to the external storage containing data from " .
+                \REDCap::logEvent($this->getModuleName(), "A PDF (" .
+                basename($filename) .
+                ") has been written to the external storage containing data from " .
                     implode(",", $this->inputForms), "", $record, $event_id);
 
             }
