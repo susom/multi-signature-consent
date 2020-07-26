@@ -13,6 +13,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
     public $header;
     public $footer;
     public $saveToFileRepo;
+    public $saveToExternalServer;
     public $saveToAsSurvey;
 
     private static $MAKING_PDF = false;
@@ -32,6 +33,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         $this->header               = $this->getProjectSetting('header');
         $this->footer               = $this->getProjectSetting('footer');
         $this->saveToFileRepo       = $this->getProjectSetting('save-to-file-repo');
+        $this->saveToExternalStorage= $this->getProjectSetting('save-to-external-storage');
         $this->saveToAsSurvey       = $this->getProjectSetting('save-to-as-survey');
         $this::$KEEP_PAGE_BREAKS    = $this->getProjectSetting('keep-page-breaks');
         $this::$KEEP_RECORD_ID_FIELD= $this->getProjectSetting('keep-record-id-field');
@@ -165,7 +167,14 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $pdfFile = array('name' => basename($filename), 'type' => 'application/pdf',
                 'size' => filesize($filename), 'tmp_name' => $filename);
             $edoc_id = \Files::uploadFile($pdfFile);
+            if ($this->saveToExternalStorage) {
+                $externalFileStoreWrite=\Files::writeFilePdfAutoArchiverToExternalServer( basename($filename), $pdf);
+                \REDCap::logEvent($this->getModuleName(), "A PDF (" .
+                basename($filename) .
+                ") has been written to the external storage containing data from " .
+                    implode(",", $this->inputForms), "", $record, $event_id);
 
+            }
             // Upload to file_field to EDOCS
             // $edoc_id = $this->framework->saveFile($filename);
             $this->emDebug($edoc_id);
