@@ -237,11 +237,23 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
                     $ip          = \System::clientIpAddress();
                     $nameDobText = $this->getModuleName();
                     $versionText = $typeText = "";
-                    $sql         = "replace into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
-                            ($edoc_id, '" . db_escape($record) . "', '" . db_escape($event_id) . "', '" . db_escape($survey_id) . "', '" . db_escape($repeat_instance) . "',
-                            " . checkNull($nameDobText) . ", " . checkNull($versionText) . ", " . checkNull($typeText) . ", " . checkNull($ip) . ")";
-                    $q           = db_query($sql);
-                    $this->emDebug($sql, $q);
+                    // $sql         = "replace into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
+                    //         ($edoc_id, '" . db_escape($record) . "', '" . db_escape($event_id) . "', '" . db_escape($survey_id) . "', '" . db_escape($repeat_instance) . "',
+                    //         " . checkNull($nameDobText) . ", " . checkNull($versionText) . ", " . checkNull($typeText) . ", " . checkNull($ip) . ")";
+                    // $q           = db_query($sql);
+                    $q = $this->query("insert into redcap_surveys_pdf_archive (doc_id, record, event_id, survey_id, instance, identifier, version, type, ip) values
+				        (?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+				        $edoc_id,
+                        db_escape($record),
+                        db_escape($event_id),
+                        db_escape($survey_id),
+                        db_escape($repeat_instance),
+                        checkNull($nameDobText),
+                        checkNull($versionText),
+                        checkNull($typeText),
+                        checkNull($ip)
+                    ]);
+                    $this->emDebug($q);
                 }
             }
 
