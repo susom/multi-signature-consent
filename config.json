@@ -3,7 +3,7 @@
 
 	"namespace": "Stanford\\MultiSignatureConsent",
 
-	"description": "A template for a REDCap External Module",
+	"description": "Allows for consent forms with multiple signatures",
 
 	"documentation": "README.md",
 
