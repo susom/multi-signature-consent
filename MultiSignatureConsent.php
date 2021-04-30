@@ -37,6 +37,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         $this->saveToAsSurvey       = $this->getProjectSetting('save-to-as-survey');
         $this::$KEEP_PAGE_BREAKS    = $this->getProjectSetting('keep-page-breaks');
         $this::$KEEP_RECORD_ID_FIELD= $this->getProjectSetting('keep-record-id-field');
+        $this->inputForms           = [];
 
         $instances = $this->framework->getSubSettings('instance');
         foreach ($instances as $instance) {
