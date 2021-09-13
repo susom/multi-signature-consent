@@ -20,6 +20,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
     private static $KEEP_RECORD_ID_FIELD = false;
     private static $KEEP_PAGE_BREAKS = false;
+    private static $SAVE_ONLY_COMPLETED = false;
 
     public function __construct() {
 		parent::__construct();
@@ -37,6 +38,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         $this->saveToAsSurvey       = $this->getProjectSetting('save-to-as-survey');
         $this::$KEEP_PAGE_BREAKS    = $this->getProjectSetting('keep-page-breaks');
         $this::$KEEP_RECORD_ID_FIELD= $this->getProjectSetting('keep-record-id-field');
+        $this::$SAVE_ONLY_COMPLETED = $this->getProjectSetting('save-only-completed');
         $this->inputForms           = [];
 
         $instances = $this->framework->getSubSettings('instance');
@@ -69,6 +71,26 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
             // Build metadata from all forms
             global $Proj;
+
+            //if checkbox to save only completed checked then only save saved Forms
+            if (self::$SAVE_ONLY_COMPLETED) {
+                //remove incomplete forms (status != 2 from the inputForms array
+                foreach ($this->inputForms as $form => $form_name) {
+                    $get_status_fields[]  = $form_name . "_complete";
+                }
+
+                $form_status = \REDCap::getData('array', $record, $get_status_fields, $event_id);
+                $this->inputForms = array(); //reset the array
+                foreach ($form_status[$record][$event_id] as $k => $v) {
+                    //only add back to the inputForm array if the status is complete
+                    if ($v == '2') {
+                        $derived = substr($k, 0, -9);
+                        $this->inputForms[] = $derived;
+                    }
+                }
+
+            }
+
 
             // Get fields in all forms
             $new_meta = [];

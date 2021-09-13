@@ -104,13 +104,20 @@
             "name": "<b>Save to External Storage</b><br>Check to save a permanent copy in the external storage (the same location that is configured for the econsent module)",
             "required": false,
             "type": "checkbox"
-        },        {
+        },
+        {
             "key": "save-to-as-survey",
             "name": "<b>Save As This Survey In File Repository</b><br>If you check the previous option, set which survey you want this to appear as in the File Repository.  If you are using the eConsent Framework on one of the surveys in this config, then be sure to select a different survey as you can only have one entry per record, per survey id in the File Repository.  Will default to first form otherwise",
             "required": false,
             "type": "form-list"
         },
-		{
+        {
+            "key": "save-only-completed",
+            "name": "<b>Save Only Completed Forms</b><br>If checked, only forms that were completed (status=2) will be added to the merged PDF",
+            "required": false,
+            "type": "checkbox"
+        },
+        {
 			"key": "enable-project-debug-logging",
 			"name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",
 			"required": false,
