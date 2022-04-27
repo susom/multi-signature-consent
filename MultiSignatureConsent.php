@@ -3,6 +3,10 @@ namespace Stanford\MultiSignatureConsent;
 
 require_once "emLoggerTrait.php";
 
+use PDF;
+use Files;
+use Records;
+
 class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
     use emLoggerTrait;
@@ -140,18 +144,23 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
 
 	public function redcap_save_record( $project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+
+        global $Proj;
+
         try {
 
-            global $Proj;
             $this->initialize();
 
             // Make sure we are in one of the input forms
-            if (!in_array($instrument, $this->inputForms)) {
-                $this->emDebug("$instrument is not in " . implode(",", $this->inputForms) . " -- skipping");
+            if (empty($this->inputForms)) {
+                $this->emError("There are no input forms selected in the EM config -- skipping");
+                return false;
+            } else if (!in_array($instrument, $this->inputForms)) {
+                $this->emDebug("$instrument is not in " . implode(",", $this->inputForms) . " -- skipping for record $record");
                 return false;
             }
 
-            $this->emDebug("Saving $record on $instrument, event $event_id with logic $this->evalLogic");
+            $this->emDebug("Checking $record on $instrument, event $event_id for logic evaluation [$this->evalLogic]");
             // $event_name = $Proj->longitudinal ? \REDCap::getEventNames(true,true,$event_id) : null;
             $logic = \REDCap::evaluateLogic($this->evalLogic, $project_id, $record, $event_id);
 
@@ -171,25 +180,38 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $first_form = $this->inputForms[0];
             $last_form = $this->inputForms[count($this->inputForms) -1 ];
 
-            $pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
-                true, $this->header, $this->footer);
+            $pdf        = $this->redcap_createpdf($record, $first_form, $event_id, false, $repeat_instance,
+                true, $this->header, $this->footer, null,null, null, $this);
+            //$pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
+            //    true, $this->header, $this->footer, null,null, null, $this);
+            $this->emDebug("Back from getPDF");
+            if ($pdf == false) {
+                $this->emDebug("Received bad status from redcap_createpdf. Could not create the pdf for project $project_id, record $record");
+                return false;
+            }
 
             // Get a temp filename
             // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
             //     $this->PREFIX . "_" .
             //     $record . ".pdf";
             $recordFilename = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $record)));
+            $this->emDebug("First form: " . json_encode($Proj->forms[$first_form]));
             $formFilename   = str_replace(" ", "_", trim(preg_replace("/[^0-9a-zA-Z- ]/", "", $Proj->forms[$first_form]['menu'])));
             $filename       = APP_PATH_TEMP . "pid" . $this->getProjectId() .
                 "_form" . $formFilename . "_id" . $recordFilename . "_" . date('Y-m-d_His') . ".pdf";
 
             // Make a file with the PDF
-            file_put_contents($filename, $pdf);
+            $status = file_put_contents($filename, $pdf);
+            if ($status == false) {
+                $this->emError("Could not write file $filename for project id " . $Proj->project_id);
+                return false;
+            }
 
             // Add PDF to edocs_metadata table
             $pdfFile = array('name' => basename($filename), 'type' => 'application/pdf',
                 'size' => filesize($filename), 'tmp_name' => $filename);
             $edoc_id = \Files::uploadFile($pdfFile);
+            $this->emDebug("Save to external storage: " . $this->saveToExternalStorage);
             if ($this->saveToExternalStorage) {
                 $externalFileStoreWrite=\Files::writeFilePdfAutoArchiverToExternalServer( basename($filename), $pdf);
                 \REDCap::logEvent($this->getModuleName(), "A PDF (" .
@@ -285,6 +307,108 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $this->emError($e->getMessage(), "Line: " . $e->getLine(), $e->getTraceAsString());
         }
     }
+
+
+    private function redcap_createpdf($record=null, $instrument=null, $event_id=null, $all_records=false, $repeat_instance=1,
+                                      $compact_display=false, $appendToHeader="", $appendToFooter="", $hideSurveyTimestamp=false, $survey_mode=false,
+                                      $hideAllHiddenAndHiddenSurveyActionTagFields=false)
+    {
+        global $Proj, $table_pk, $table_pk_label, $longitudinal, $custom_record_label, $surveys_enabled,
+               $salt, $__SALT__, $user_rights, $lang, $ProjMetadata, $ProjForms, $project_encoding;
+
+        $this->emDebug("In getPDF");
+        // Make sure we are in the Project context
+        //self::checkProjectContext(__METHOD__);
+        //$this->emDebug("After checkProjectContext");
+        // If a longitudinal project and no event_id is provided, then manually set to null
+        if ($longitudinal && $record != null && $event_id != null && !isset($Proj->eventInfo[$event_id])) {
+            $this->emError("ERROR: Event ID \"$event_id\" is not a valid event_id for this project " . $Proj->project_id . "!");
+            //exit("ERROR: Event ID \"$event_id\" is not a valid event_id for this project!");
+            return false;
+            // If a non-longitudinal project, then set event_id automatically
+        } elseif (!$longitudinal) {
+            $event_id = $Proj->firstEventId;
+        }
+        $this->emDebug("Found record and event id for project " . $Proj->project_id);
+
+        // If instrument is not null and does not exist, then return error
+        if ($instrument != null && !isset($Proj->forms[$instrument])) {
+            $this->emError("ERROR: \"$instrument\" is not a valid unique instrument name for this project " . $Proj->project_id . "!");
+            //exit("ERROR: \"$instrument\" is not a valid unique instrument name for this project!");
+            return false;
+        }
+        $this->emDebug("After 2: this is PROJECT_ID: " . PROJECT_ID . ", and this is the record " . json_encode($record));
+
+        // If record is not null and does not exist, then return error
+        if ($record != null && !Records::recordExists(PROJECT_ID, $record)) {
+            $this->emError("ERROR: \"$record\" is not an existing record in this project" . $Proj->project_id . "!");
+            //exit("ERROR: \"$record\" is not an existing record in this project!");
+            return false;
+        }
+        $this->emDebug("Checks complete for record " . $record . " and project " . PROJECT_ID);
+
+        // Capture original $_GET params since we're manipulating them here in order to use the existing PDF script
+        $get_orig = $_GET;
+        unset($_GET['s']);
+        $_GET['__noLogPDFSave'] = 1;
+        // Set export rights to max to ensure PDF exports fully
+        $export_rights_orig = $user_rights['data_export_tool'];
+        $user_rights['data_export_tool'] = '1';
+        // Append text to header/footer?
+        if ($appendToHeader != "") $_GET['appendToHeader'] = $appendToHeader;
+        if ($appendToFooter != "") $_GET['appendToFooter'] = $appendToFooter;
+        if ($hideSurveyTimestamp)  $_GET['hideSurveyTimestamp'] = 1;
+        // Compact display
+        if ($compact_display) $_GET['compact'] = 1;
+        // Set event_id
+        $this->emDebug("After 4");
+
+        if (is_numeric($event_id)) {
+            $_GET['event_id'] = $event_id;
+        }
+        $this->emDebug("After 5");
+
+        // Output PDF of all forms (ALL records)
+        if ($all_records) {
+            $_GET['allrecords'] = '1';
+            $_GET['page'] = null;
+        }
+        // Output PDF of single form (blank)
+        elseif ($instrument != null && $record == null) {
+            $_GET['page'] = $instrument;
+        }
+        // Output PDF of single form (single record's data)
+        elseif ($instrument != null && $record != null) {
+            $_GET['id'] = $record;
+            $_GET['page'] = $instrument;
+            $_GET['instance'] = $repeat_instance;
+        }
+        // Output PDF of all forms (blank)
+        elseif ($instrument == null && $record == null) {
+            $_GET['all'] = '1';
+            $_GET['page'] = null;
+        }
+        // Output PDF of all forms (single record's data)
+        elseif ($instrument == null && $record != null) {
+            $_GET['id'] = $record;
+            $_GET['page'] = null;
+            $_GET['instance'] = $repeat_instance;
+        }
+        $this->emDebug("After 6");
+        // Capture PDF output using output buffer
+        ob_start();
+        // Output PDF to buffer
+        $this->emDebug("Output PDF to buffer for record record $record, event $event_id, instrument $instrument, repeat instance $repeat_instance");
+        PDF::output($survey_mode, $hideAllHiddenAndHiddenSurveyActionTagFields);
+        $this->emDebug("Returned from PDF to buffer for record record $record, event $event_id, instrument $instrument, repeat instance $repeat_instance");
+        // Reset $_GET params
+        $_GET = $get_orig;
+        $user_rights['data_export_tool'] = $export_rights_orig;
+        // Obtain PDF content from buffer and return it
+        $this->emDebug("Before ob_get_clean");
+        return ob_get_clean();
+    }
+
 
 
 }
