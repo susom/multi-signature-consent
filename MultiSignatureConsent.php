@@ -174,6 +174,8 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
                 true, $this->header, $this->footer);
 
+            $this->emDebug("Successfully Retrieved pdf for project $project_id, record $record");
+
             // Get a temp filename
             // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
             //     $this->PREFIX . "_" .
@@ -184,14 +186,20 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
                 "_form" . $formFilename . "_id" . $recordFilename . "_" . date('Y-m-d_His') . ".pdf";
 
             // Make a file with the PDF
+            $this->emDebug("Starting to create a file for the pdf: pid=$project_id, record=$record");
             file_put_contents($filename, $pdf);
+            $this->emDebug("Finished creating a file for the pdf: pid=$project_id, record=$record");
 
             // Add PDF to edocs_metadata table
             $pdfFile = array('name' => basename($filename), 'type' => 'application/pdf',
                 'size' => filesize($filename), 'tmp_name' => $filename);
+            $this->emDebug("Starting the file upload process with the pdf: pid=$project_id, record=$record");
             $edoc_id = \Files::uploadFile($pdfFile);
+            $this->emDebug("Finished uploading pdf: pid=$project_id, record=$record");
             if ($this->saveToExternalStorage) {
+                $this->emDebug("Starting the file upload process to auto archiver: pid=$project_id, record=$record");
                 $externalFileStoreWrite=\Files::writeFilePdfAutoArchiverToExternalServer( basename($filename), $pdf);
+                $this->emDebug("Finished upload process to auto archiver: pid=$project_id, record=$record");
                 \REDCap::logEvent($this->getModuleName(), "A PDF (" .
                 basename($filename) .
                 ") has been written to the external storage containing data from " .
@@ -220,6 +228,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
                     ]
                 ];
 
+                $this->emDebug("Saving the file to the record: pid=$project_id, record=$record");
                 $result = \Records::saveData(
                     $project_id,
                     'array',        //$dataFormat = (isset($args[1])) ? strToLower($args[1]) : 'array';
@@ -241,6 +250,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
                     false           //$bypassPromisCheck = (isset($args[17])) ? $args[17] : false;
                 );
 
+                $this->emDebug("Finished saving file to the record: pid=$project_id, record=$record with return ", json_encode($result));
                 \REDCap::logEvent($this->getModuleName(), $this->destinationFileField .
                     " was updated with a new PDF containing data from " .
                     implode(",", $this->inputForms), "", $record, $event_id);
