@@ -67,7 +67,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
 
             // We were called from inside of this EM
-            $this->emDebug("In PDF Hook!", func_get_args(), $this->inputForms, $this->evalLogic);
+            $this->emDebug("In PDF Hook!", $data, $instrument, $record, $event_id, $instance, $this->inputForms, $this->evalLogic);
 
             // Build metadata from all forms
             global $Proj;
@@ -75,20 +75,23 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             //if checkbox to save only completed checked then only save saved Forms
             if (self::$SAVE_ONLY_COMPLETED) {
                 //remove incomplete forms (status != 2 from the inputForms array
+
+                $form_status_fields = [];
                 foreach ($this->inputForms as $form => $form_name) {
-                    $get_status_fields[]  = $form_name . "_complete";
+                    $form_status_fields[]  = $form_name . "_complete";
                 }
 
-                $form_status = \REDCap::getData('array', $record, $get_status_fields, $event_id);
-                $this->inputForms = array(); //reset the array
+                $form_status = \REDCap::getData('array', $record, $form_status_fields, $event_id);
+                $new_import_forms = [];
                 foreach ($form_status[$record][$event_id] as $k => $v) {
                     //only add back to the inputForm array if the status is complete
                     if ($v == '2') {
                         $derived = substr($k, 0, -9);
-                        $this->inputForms[] = $derived;
+                        $new_import_forms[] = $derived;
                     }
                 }
-
+                $this->emDebug("Updating input forms: " . json_encode($this->inputForms) . " to " . json_encode($new_import_forms));
+                $this->inputForms = $new_import_forms; //reset the array
             }
 
 
@@ -98,7 +101,6 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             foreach ($Proj->metadata as $field_name => $field_meta) {
                 if (in_array($field_meta['form_name'], $this->inputForms)) {
                     // This field is in our form
-
 
                     // Skip form_complete fields
                     if ($field_meta['form_name'] . "_complete" == $field_meta['field_name']) {
@@ -132,6 +134,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             }
 
             // Get the updated data
+            $this->emDebug("Getting updated data for $record in event $event_id: " . json_encode($fields));
             $new_data = \REDCap::getData('array', $record, $fields, $event_id);
 
             return array('metadata'=>$new_meta, 'data'=>$new_data);
