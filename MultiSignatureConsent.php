@@ -164,16 +164,16 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $this->emDebug("Logic True");
 
             // Make a PDF
-            //$this->emDebug("Making PDF", self::$MAKING_PDF);
+            $this->emDebug("Making PDF", self::$MAKING_PDF);
             self::$MAKING_PDF = true;
 
             // Always start with the 'first form' as the template
+            $this->emDebug("Forms: " . json_encode($this->inputForms));
             $first_form = $this->inputForms[0];
             $last_form = $this->inputForms[count($this->inputForms) -1 ];
 
-            $pdf        = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance,
-                true, $this->header, $this->footer);
-
+            $this->emDebug("Creating PDF with inputs", $record, $first_form, $event_id, $repeat_instance, $this->header, $this->footer);
+            $pdf = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance, true, $this->header, $this->footer);
             $this->emDebug("Successfully Retrieved pdf for project $project_id, record $record");
 
             // Get a temp filename
