@@ -65,7 +65,7 @@
         },
         {
             "key": "eval-logic",
-            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF.  This logic should not be true until all forms are complete",
+            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF.  This logic should not be true until all forms are complete AND should not remain true after the PDF has been generated or else it might lead to multiple PDFs being created on each SAVE event.<br><i>e.g.</i> <code>[coordinator_signature]<>\"\" AND [dest_file_field]=\"\"</code>",
             "required": true,
             "type": "textarea"
         },

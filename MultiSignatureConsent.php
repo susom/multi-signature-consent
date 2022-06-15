@@ -170,6 +170,20 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $this->emDebug("Making PDF", self::$MAKING_PDF);
             self::$MAKING_PDF = true;
 
+            // In order for this to succeed, it is required that the global $user_rights be set for the current user
+            // This bug was hard to find.  As an aside, survey respondents DO have form export and data export rights
+            // but users that do not have them were previously unable to complete execution of this process.
+            // Even worse, the getPDF method would fail with a 'die' that would lead to an EM error for a crashed
+            // Process...
+            global $user_rights;
+            $cache_user_rights = $user_rights;
+            // $this->emDebug("BEFORE", $user_rights);
+            foreach ($this->inputForms as $form_name) {
+                $user_rights['forms_export'][$form_name] = 1;
+            }
+            $user_rights['data_export_tool'] = 1;
+            // $this->emDebug("AFTER", $user_rights);
+
             // Always start with the 'first form' as the template
             $this->emDebug("Forms: " . json_encode($this->inputForms));
             $first_form = $this->inputForms[0];
@@ -178,6 +192,9 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
             $this->emDebug("Creating PDF with inputs", $record, $first_form, $event_id, $repeat_instance, $this->header, $this->footer);
             $pdf = \REDCap::getPDF($record, $first_form, $event_id, false, $repeat_instance, true, $this->header, $this->footer);
             $this->emDebug("Successfully Retrieved pdf for project $project_id, record $record");
+
+            // Restore user rights to previous values
+            $user_rights = $cache_user_rights;
 
             // Get a temp filename
             // $filename = APP_PATH_TEMP . date('YmdHis') . "_" .
