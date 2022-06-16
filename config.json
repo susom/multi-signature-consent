@@ -3,7 +3,7 @@
 
 	"namespace": "Stanford\\MultiSignatureConsent",
 
-	"description": "Allows for consent forms with multiple signatures",
+	"description": "This module allows you to combine data from one or more forms into a single PDF.  It was designed for use in projects where you have multiple consent forms completed by multiple participants or coordinators and wish to merge them into a single, 'final', consent.  You can then use an Alert and Notification to email the final consent to participants.",
 
 	"documentation": "README.md",
 
