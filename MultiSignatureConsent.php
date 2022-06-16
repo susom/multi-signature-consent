@@ -41,7 +41,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
         $this::$SAVE_ONLY_COMPLETED = $this->getProjectSetting('save-only-completed');
         $this->inputForms           = [];
 
-        $instances = $this->framework->getSubSettings('instance');
+        $instances = $this->getSubSettings('instance');
         foreach ($instances as $instance) {
             $this->inputForms[] = $instance['form-name'];
         }
