@@ -7,7 +7,7 @@
 
 	"documentation": "README.md",
 
-    "framework-version": 9,
+    "framework-version": 10,
 
 	"authors": [
 		{
@@ -30,18 +30,24 @@
 
 	"links": {
 		"project": [
-
+            {
+                "name": "TEST",
+                "icon": "gear",
+                "url": "test.php",
+                "show-header-and-footer": false
+            }
 		],
 		"control-center": [
 
 		]
 	},
 
-	"no-auth-pages": [
-
-	],
-
 	"project-settings": [
+        {
+            "key": "instructions",
+            "name": "<b>Instructions</b><br>This module allows you to merge mulitple PDFs together.  The source PDFs can come from REDCap surveys in this project or from pdfs uploaded to descriptive fields in the surveys being merged.",
+            "type": "descriptive"
+        },
         {
             "key": "instance",
             "name": "<b>Instruments to Merge</b>",
@@ -51,11 +57,55 @@
             "sub_settings": [
                 {
                     "key": "form-name",
-                    "name": "<b>Form</b>",
+                    "name": "<b>Form</b><br/>Select any form (data entry or survey) to be converted to PDF and merged",
                     "required": true,
                     "type": "form-list"
+                },
+                {
+                    "key": "include-metadata-pdf",
+                    "name": "<b>Include Metadata PDFs</b><br>If you attach a PDF to the form's metadata (via the descriptive file-upload field type) you can choose to include this PDF as part of the merge.  This is commonly used for attaching IRB-approved consent PDFs to a survey.  Only visible fields with PDF files will be included.",
+                    "type": "dropdown",
+                    "choices": [
+                        {
+                            "name": "Do not include",
+                            "value": ""
+                        },
+                        {
+                            "name": "Include BEFORE (only visible fields)",
+                            "value": "before"
+                        },
+                        {
+                            "name": "Include AFTER (only visible fields)",
+                            "value": "after"
+                        }
+                    ]
+                },
+                {
+                    "key": "include-user-uploaded-pdf",
+                    "name": "<b>Include User Uploaded PDFs</b><br>If your form contains file-upload fields and a PDF was uploaded by the user, do you wish to include this PDF in the merged output.  This is commonly used for participant uploading of signed paper documents.",
+                    "type": "dropdown",
+                    "choices": [
+                        {
+                            "name": "Do not include",
+                            "value": ""
+                        },
+                        {
+                            "name": "Include BEFORE this form",
+                            "value": "before"
+                        },
+                        {
+                            "name": "Include AFTER this form",
+                            "value": "after"
+                        }
+                    ]
                 }
             ]
+        },
+        {
+            "key": "desc-separator",
+            "name": "<b>-------------</b>",
+            "required": false,
+            "type": "descriptive"
         },
         {
           "key": "destination-file-field",
@@ -65,7 +115,7 @@
         },
         {
             "key": "eval-logic",
-            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF.  This logic should not be true until all forms are complete AND should not remain true after the PDF has been generated or else it might lead to multiple PDFs being created on each SAVE event.<br><i>e.g.</i> <code>[coordinator_signature]<>\"\" AND [dest_file_field]=\"\"</code>",
+            "name": "<b>Update Logic</b><br>When this logic is true and one of the above forms is saved, then create the PDF.  This logic should not be true until all forms are complete.  <b>Important:</b> This logic should not remain true after the PDF has been generated or else it might lead to multiple PDFs being created on each subsequent SAVE event.  Therefore, include logic that also stops generation if it has already occurred.<br><i>e.g.</i> <code>[coordinator_signature]<>\"\" AND [dest_file_field]=\"\"</code>",
             "required": true,
             "type": "textarea"
         },
@@ -134,6 +184,14 @@
 			"type": "checkbox"
 		}
 	],
+
+    "no-auth-pages": [
+        "test"
+    ],
+
+    "no-csrf-pages": [
+        "test"
+    ],
 
 	"compatibility": {
 		"php-version-min": "",

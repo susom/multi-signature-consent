@@ -1,0 +1,13 @@
+{
+    "minimum-stability": "dev",
+    "prefer-stable" : true,
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/susom/pdf-merge"
+        }
+    ],
+    "require": {
+        "karriere/pdf-merge": "dev-master"
+    }
+}

@@ -18,3 +18,5 @@
 
 # Emacs backup files
 *~
+
+/vendor/
