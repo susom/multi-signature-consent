@@ -175,7 +175,7 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
                 $statuses     = $formStatus[$record][$event_id] ?? [];
                 $anyComplete  = false;
                 foreach ($this->inputForms as $formName) {
-                    if (($statuses[$formName . '_complete'] ?? null) == '2') {
+                    if (($statuses[$formName . '_complete'] ?? null) === '2') {
                         $anyComplete = true;
                         break;
                     }
