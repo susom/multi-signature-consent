@@ -166,6 +166,26 @@ class MultiSignatureConsent extends \ExternalModules\AbstractExternalModule {
 
             $this->emDebug("Logic True");
 
+            // If only saving completed forms, verify at least one is complete before generating
+            // a PDF. The redcap_pdf hook will then include only the completed forms' fields.
+            // Without this guard, the hook would return empty metadata and produce a blank PDF.
+            if (self::$SAVE_ONLY_COMPLETED) {
+                $statusFields = array_map(fn($f) => $f . '_complete', $this->inputForms);
+                $formStatus   = \REDCap::getData('array', $record, $statusFields, $event_id);
+                $statuses     = $formStatus[$record][$event_id] ?? [];
+                $anyComplete  = false;
+                foreach ($this->inputForms as $formName) {
+                    if (($statuses[$formName . '_complete'] ?? null) === '2') {
+                        $anyComplete = true;
+                        break;
+                    }
+                }
+                if (!$anyComplete) {
+                    $this->emDebug("Save Only Completed: no input forms are complete — skipping PDF generation");
+                    return false;
+                }
+            }
+
             // Make a PDF
             $this->emDebug("Making PDF", self::$MAKING_PDF);
             self::$MAKING_PDF = true;
